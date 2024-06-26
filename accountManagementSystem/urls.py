@@ -22,5 +22,5 @@ admin.site.site_header = 'AccountManagement System'
 urlpatterns = [
     path('admin/', admin.site.urls),
     path("demo/", include("demo.urls")),
-    path('/api/v1/', include('accounts.urls')),
+    path('api/v1/', include('accounts.urls')),
 ]
