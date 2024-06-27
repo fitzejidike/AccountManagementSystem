@@ -3,7 +3,6 @@ from decimal import Decimal
 from django.shortcuts import get_object_or_404
 from rest_framework import status, viewsets
 from rest_framework.decorators import api_view
-from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
@@ -16,14 +15,14 @@ class AccountViewSet(ModelViewSet):
     serializer_class = AccountCreateSerializer
 
 
-class ListAccount(ListCreateAPIView):
-    queryset = Account.objects.all()
-    serializer_class = AccountCreateSerializer
-
-
-class AccountDetails(RetrieveUpdateDestroyAPIView):
-    queryset = Account.objects.all()
-    serializer_class = AccountCreateSerializer
+# class ListAccount(ListCreateAPIView):
+#     queryset = Account.objects.all()
+#     serializer_class = AccountCreateSerializer
+#
+#
+# class AccountDetails(RetrieveUpdateDestroyAPIView):
+#     queryset = Account.objects.all()
+#     serializer_class = AccountCreateSerializer
 
     # lookup_field = 'account_number'
 
