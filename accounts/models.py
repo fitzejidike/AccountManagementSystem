@@ -20,6 +20,10 @@ class Account(models.Model):
     balance = models.DecimalField(max_digits=16, decimal_places=2, default=0, )
 
 
+    def __str__(self):
+        return f"{self.first_name} -{self.last_name}- {self.account_number} - {self.account_type}"
+
+
 class Transaction(models.Model):
     TRANSACTION_TYPE = [
         ('CREDIT', 'CRE'),
@@ -36,5 +40,5 @@ class Transaction(models.Model):
     transaction_time = models.DateTimeField(auto_now_add=True)
     amount = models.DecimalField(max_digits=15, decimal_places=2)
     description = models.TextField()
-    transaction_status = models.CharField(max_length=1, choices=Transaction_STATUS, default='P')
+    transaction_status = models.CharField(max_length=1, choices=Transaction_STATUS, default='S')
     transaction_id = models.CharField(max_length=9, default=generate_acct_number)
