@@ -1,13 +1,19 @@
 from decimal import Decimal
 
+from django.contrib.auth.decorators import login_required
+from django.core.mail import send_mail
+from django.db import transaction
 from django.shortcuts import get_object_or_404
-from rest_framework import status, viewsets
+from rest_framework import status
 from rest_framework.decorators import api_view
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
 from .models import Account, Transaction
-from .serializers import AccountSerializer, AccountCreateSerializer
+from .serializers import AccountCreateSerializer, DepositWithdrawSerializer, WithdrawSerializer, \
+    CheckBalanceSerializer, TransferSerializer
 
 
 class AccountViewSet(ModelViewSet):
@@ -18,13 +24,13 @@ class AccountViewSet(ModelViewSet):
 # class ListAccount(ListCreateAPIView):
 #     queryset = Account.objects.all()
 #     serializer_class = AccountCreateSerializer
-#
-#
+# 
+# 
 # class AccountDetails(RetrieveUpdateDestroyAPIView):
 #     queryset = Account.objects.all()
 #     serializer_class = AccountCreateSerializer
 
-    # lookup_field = 'account_number'
+# lookup_field = 'account_number'
 
 
 # @api_view(['GET', 'POST'])
@@ -58,36 +64,128 @@ class AccountViewSet(ModelViewSet):
 #         return Response(serializer.data, status=status.HTTP_200_OK)
 #     elif request.method == "DELETE":
 #         account.delete()
-#         return Response(status=status.HTTP_204_NO_CONTENT)
+#         return Response(status=status.HTTP_204_NO_CONT
+class Deposit(APIView):
+    def post(self, request):
+        serializer = DepositWithdrawSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        account_number = serializer.data['account_number']
+        amount = Decimal(serializer.data['amount'])
+        transaction_details = {}
+        account = get_object_or_404(Account, pk=account_number)
+        balance = account.balance
+        balance += amount
+        Account.objects.filter(account_number=account_number).update(balance=balance)
+        Transaction.objects.create(
+            account=account,
+            amount=amount,
+
+        )
+        transaction_details['account_number'] = account_number
+        transaction_details['amount'] = amount
+        transaction_details['transaction_type'] = 'CRED'
+        return Response(data=transaction_details, status=status.HTTP_200_OK)
 
 
-@api_view(["POST"])
-def deposit(request):
-    accounts_number = request.data['account_number']
-    amount = request.data['amount']
-    account = get_object_or_404(Account, pk=accounts_number)
-    account.balance += Decimal(amount)
-    account.save()
-    Transaction.objects.create(account=account,
-                               amount=amount)
-    return Response(data={"message": "Transaction success"}, status=status.HTTP_200_OK)
+class Withdraw(APIView):
+    def post(self, request):
+        serializer = WithdrawSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        account_number = serializer.data['account_number']
+        amount = Decimal(serializer.data['amount'])
+        pin = serializer.data['pin']
+        transaction_details = {}
+        account = get_object_or_404(Account, pk=account_number)
+        balance = account.balance
+        if balance >= amount:
+            balance -= amount
+        Account.objects.filter(account_number=account_number).update(balance=balance)
+        Transaction.objects.create(
+            account=account,
+            amount=amount,
+            pin=pin,
+
+        )
+        transaction_details['account_number'] = account_number
+        transaction_details['amount'] = amount
+        transaction_details['transaction_type'] = 'WITH'
+        return Response(data=transaction_details, status=status.HTTP_200_OK)
 
 
-@api_view(["POST"])
-def withdraw(request):
-    accounts_number = request.data['account_number']
-    amount = request.data.get['amount', "amount cannot be null"]
-    pin = request.data['pin']
-    account = get_object_or_404(Account, pk=accounts_number)
-    if account.pin == pin:
-        if account.balance > amount:
-            account.balance -= Decimal(amount)
-            account.save()
+class CheckBalance(APIView):
+    def GET(self, request):
+        serializer = CheckBalanceSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        account_number = serializer.data['account_number']
+        pin = serializer.data['pin']
+        transaction_details = {}
+        account = get_object_or_404(Account, pk=account_number)
+
+
+class TransferViewSet(ModelViewSet):
+    queryset = Account.objects.all()
+    serializer = TransferSerializer
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        user = request.user
+        print(user)
+
+        serializer = TransferSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        sender_account = serializer.data['account_number']
+        receiver_account = serializer.data['receiver_account_number']
+        amount = Decimal(serializer.data['amount'])
+        transaction_details = {}
+        sender_account_from = get_object_or_404(Account, pk=sender_account)
+        receiver_account_to = get_object_or_404(Account, pk=receiver_account)
+        balance = sender_account_from.balance
+        transaction_details = {}
+        if balance > amount:
+            balance -= amount
         else:
-            return Response(data={"message": "Invalid:Insufficient funds"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(data={"message": "insufficient balance"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            transferred_balance = receiver_account_to.balance + amount
+            Account.objects.filter(pk=receiver_account).update(balance=transferred_balance)
+        except Account.DoesNotExist:
+            return Response(data={"message": "Transaction failed"}, status=status.HTTP_400_BAD_REQUEST)
+        Transaction.objects.create(
+            account=sender_account,
+            amount=amount,
+            transaction_type='Transfer')
+        transaction_details['receiver_account'] = receiver_account
+        transaction_details['amount'] = amount
+        transaction_details['transaction_type'] = 'Transfer'
+        return Response(data=transaction_details, status=status.HTTP_201_CREATED)
 
-    else:
+    def retrieve(self, request, *args, **kwargs):
+        return Response(data="Method not supported", status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
-        return Response(data={"message": "Invalid: Invalid Transaction"}, status=status.HTTP_400_BAD_REQUEST)
+    def list(self, request, *args, **kwargs):
+        return Response(data="Method not supported", status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
-    return Response(data={"message": "Transaction success"}, status=status.HTTP_200_OK)
+
+class CheckBalance(APIView):
+    def get(self,request):
+        user = request.user
+        account = get_object_or_404(Account, user=user.id)
+        balance_details = {'account_number': account.account_number, 'balance': account.balance}
+        message = f'''
+        your new balance is {account.balance}
+        Thank you for banking with jaguda
+        '''
+        send_mail(subject='JAGUDA',
+                  message=message,
+                  from_email='noreply@jaguda.com',
+                  recipient_list=[f'{user.email}'])
+        return Response(data=balance_details, status=status.HTTP_200_OK)
+
+    @api_view()
+    @login_required
+    def check_balance(request):
+        user = request.user
+        account = get_object_or_404(Account, user=user.id)
+        account_details = {'account_number': account.account_number, 'account_balance': account.account_balance}
+        return Response(data=account_details, status=status.HTTP_200_OK)

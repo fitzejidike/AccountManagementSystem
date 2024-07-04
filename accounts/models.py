@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from accounts.utility import generate_acct_number
 from .validators import validate_pin
@@ -10,25 +11,25 @@ class Account(models.Model):
         ('C', 'CURRENT'),
         ('D', 'DOM')
     ]
-
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     account_type = models.CharField(max_length=8, choices=ACCOUNT_TYPE, default='S')
     account_number = models.CharField(max_length=10, default=generate_acct_number, unique=True,
                                       primary_key=True)
-    first_name = models.CharField(max_length=255)
-    last_name = models.CharField(max_length=255)
-    pin = models.CharField(max_length=4, validators=[validate_pin])
-    balance = models.DecimalField(max_digits=16, decimal_places=2, default=0, )
-
+    # first_name = models.CharField(max_length=255)
+    # last_name = models.CharField(max_length=255)
+    pin = models.CharField(max_length=4, validators=[validate_pin], default=0000)
+    balance = models.DecimalField(max_digits=16, decimal_places=2, default=0.00)
 
     def __str__(self):
-        return f"{self.first_name} -{self.last_name}- {self.account_number} - {self.account_type}"
+        return f"{self.account_number} - {self.account_type}"
 
 
 class Transaction(models.Model):
     TRANSACTION_TYPE = [
         ('CREDIT', 'CRE'),
         ('DEBIT', 'DEB'),
-        ('TRANSFER', 'TRA')
+        ('TRANSFER', 'TRA'),
+        ('WITHDRAW', 'WITH')
     ]
     Transaction_STATUS = [
         ('P', 'PENDING'),
