@@ -27,7 +27,7 @@ INSTALLED_APPS = [
     'demo',
     'accounts',
     'rest_framework',
-    'user'
+    'user',
     'djoser'
 ]
 

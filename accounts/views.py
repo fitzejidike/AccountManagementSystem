@@ -129,8 +129,6 @@ class TransferViewSet(ModelViewSet):
 
     @transaction.atomic
     def create(self, request, *args, **kwargs):
-        user = request.user
-        print(user)
 
         serializer = TransferSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

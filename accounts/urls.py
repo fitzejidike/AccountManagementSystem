@@ -11,6 +11,6 @@ urlpatterns = [
     path('', include(router.urls)),
     # path('accounts', views.ListAccount.as_view(), name='ListAccount'),
     # path('accounts/<str:pk>/', views.AccountDetails.as_view(), name='AccountDetails'),
-     path("deposit", views.deposit.as_view()),
+    #  path("deposit", views.deposit.as_view()),
     # path("withdraw", views.withdraw),
 ]
